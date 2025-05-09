@@ -1,0 +1,16 @@
+provider: cloudflare
+
+cloudflare:
+  apiToken: "vGhsfkgjNpG-VNaLNG1IK3uMIvNuTWo7NbHgPKLt"
+  proxied: false
+
+sources:
+  - ingress
+
+domainFilters:
+  - a3888s.pp.ua
+
+policy: sync
+registry: txt
+txtOwnerId: dev
+logLevel: debug
