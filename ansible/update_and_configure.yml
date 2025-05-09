@@ -1,0 +1,217 @@
+---
+- name: Підготовка серверів (QEMU Guest Agent, базова настройка, Zabbix, SSH, безпека, nginx, iptables)
+  hosts: all
+  become: true
+
+  vars:
+    users:
+      - { name: "a3888s", password: "EW97VhKJ03OjoZ7ayy92JRm15" }
+    zabbix_server: "0.0.0.0"
+    ssh_port: 22276
+
+  tasks:
+    - name: Оновлення кешу apt
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Оновлення списку пакетів та оновлення системи
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Встановлення QEMU Guest Agent
+      apt:
+        name: qemu-guest-agent
+        state: present
+
+    - name: Увімкнення та запуск QEMU Guest Agent
+      systemd:
+        name: qemu-guest-agent
+        enabled: yes
+        state: started
+
+    - name: Оновлення системи
+      apt:
+        upgrade: yes
+
+    - name: Створення користувачів
+      user:
+        name: "{{ item.name }}"
+        password: "{{ item.password | password_hash('sha512') }}"
+        shell: /bin/bash
+        create_home: yes
+      loop: "{{ users }}"
+
+    - name: Додавання користувачів до групи sudo
+      user:
+        name: "{{ item.name }}"
+        groups: sudo
+        append: yes
+      loop: "{{ users }}"
+
+    - name: Дозвіл користувачам виконувати sudo без пароля
+      copy:
+        dest: "/etc/sudoers.d/{{ item.name }}"
+        content: |
+          {{ item.name }} ALL=(ALL) NOPASSWD:ALL
+        mode: '0440'
+      loop: "{{ users }}"
+
+    - name: Зміна порту SSH на {{ ssh_port }}
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Port '
+        line: 'Port {{ ssh_port }}'
+        state: present
+
+    - name: Вимкнення доступу root по паролю
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin prohibit-password'
+        state: present
+
+    - name: Перезавантаження systemd для застосування змін
+      command: systemctl daemon-reload
+
+    - name: Перезапуск SSH або ssh.socket для застосування змін
+      block:
+        - name: Перезапуск сервісу ssh
+          service:
+            name: ssh
+            state: restarted
+          ignore_errors: true
+
+        - name: Перезапуск ssh.socket, якщо перезапуск ssh не вдався (для Ubuntu 24.04+)
+          command: systemctl restart ssh.socket
+          when: ansible_distribution_version is version('22.04', '>=')
+
+    - name: Завантаження репозиторію Zabbix
+      get_url:
+        url: "https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.0-2+ubuntu24.04_all.deb"
+        dest: "/tmp/zabbix-release_7.0-2+ubuntu24.04_all.deb"
+
+    - name: Встановлення репозиторію Zabbix
+      command:
+        cmd: "dpkg -i /tmp/zabbix-release_7.0-2+ubuntu24.04_all.deb"
+      args:
+        creates: "/etc/apt/sources.list.d/zabbix.list"
+
+    - name: Оновлення списку пакетів після додавання репозиторію Zabbix
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Встановлення Zabbix Agent
+      apt:
+        name: zabbix-agent
+        state: present
+
+    - name: Налаштування Zabbix Agent
+      lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^Server=', line: "Server={{ zabbix_server }}" }
+        - { regexp: '^ServerActive=', line: "ServerActive={{ zabbix_server }}" }
+        - { regexp: '^Hostname=', line: "Hostname={{ inventory_hostname }}" }
+
+    - name: Перезапуск та додавання в автозапуск Zabbix Agent
+      systemd:
+        name: zabbix-agent
+        state: restarted
+        enabled: yes
+
+    - name: Встановлення Fail2Ban
+      apt:
+        name: fail2ban
+        state: present
+
+    - name: Налаштування Fail2Ban (захист SSH)
+      copy:
+        dest: /etc/fail2ban/jail.local
+        content: |
+          [sshd]
+          enabled = true
+          port = {{ ssh_port }}
+          filter = sshd
+          action = iptables-multiport[name=SSH, port={{ ssh_port }}, protocol=tcp]
+          logpath = /var/log/auth.log
+          maxretry = 5
+        mode: '0644'
+
+    - name: Перезапуск та включення Fail2Ban
+      systemd:
+        name: fail2ban
+        state: restarted
+        enabled: yes
+
+    - name: Встановлення nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: Увімкнення та запуск nginx
+      systemd:
+        name: nginx
+        enabled: yes
+        state: started
+
+    - name: Встановлення iptables-persistent
+      apt:
+        name: iptables-persistent
+        state: present
+      tags: iptables
+
+    - name: Додавання базових правил iptables
+      blockinfile:
+        path: /etc/iptables/rules.v4
+        create: yes
+        block: |
+          *filter
+          :INPUT DROP [0:0]
+          :FORWARD DROP [0:0]
+          :OUTPUT ACCEPT [0:0]
+          -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+          -A INPUT -i lo -j ACCEPT
+          -A INPUT -p tcp --dport {{ ssh_port }} -j ACCEPT
+          -A INPUT -p tcp --dport 80 -j ACCEPT
+          -A INPUT -p tcp --dport 443 -j ACCEPT
+          COMMIT
+
+    - name: Збереження правил IPv6 (пуста політика, можна змінити при потребі)
+      copy:
+        dest: /etc/iptables/rules.v6
+        content: |
+          *filter
+          :INPUT ACCEPT [0:0]
+          :FORWARD ACCEPT [0:0]
+          :OUTPUT ACCEPT [0:0]
+          COMMIT
+        mode: '0644'
+
+    - name: Завантаження правил iptables
+      shell: iptables-restore < /etc/iptables/rules.v4
+
+    - name: Завантаження правил ip6tables
+      shell: ip6tables-restore < /etc/iptables/rules.v6
+
+    - name: Перевірка, чи вже встановлений k3s
+      stat:
+        path: /usr/local/bin/k3s
+      register: k3s_installed
+
+    - name: Встановлення k3s (одинарний master)
+      shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--write-kubeconfig-mode 644" sh -
+      when: not k3s_installed.stat.exists
+
+    - name: Перевірка, що k3s працює
+      shell: k3s kubectl get nodes
+      register: k3s_nodes
+      changed_when: false
+
+    - name: Вивід інформації про вузли
+      debug:
+        msg: "{{ k3s_nodes.stdout }}"
