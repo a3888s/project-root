@@ -9,7 +9,7 @@ controller:
   service:
     type: NodePort
     nodePorts:
-      http: 32080
+      http: 30080
       https: 32443
 
   metrics:
