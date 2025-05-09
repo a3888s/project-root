@@ -71,13 +71,13 @@ This project 🌐 is designed to automate infrastructure management ⚙️ and a
 ## 📷 Proof of Execution
 
 * Helm chart deployments
-* ![ArgoCD](screens/1.png)
+![ArgoCD](screens/1.jpg)
 * Running ingress controllers
-* ![ArgoCD](screens/2.png)
+![ArgoCD](screens/2.jpg)
 * ArgoCD with `Healthy` and `Synced` status
-* ![ArgoCD](screens/3.png)
-* HTTP responses from dev/prod apps
-* ![ArgoCD](screens/4.png)
+![ArgoCD](screens/3.jpg)
+  * HTTP responses from dev/prod apps
+![ArgoCD](screens/4.jpg)
 
 ---
 
