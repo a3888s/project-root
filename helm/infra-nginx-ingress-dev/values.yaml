@@ -10,7 +10,7 @@ controller:
     type: NodePort
     nodePorts:
       http: 31080
-      https: 31443
+      https: 31445
 
   metrics:
     enabled: true
