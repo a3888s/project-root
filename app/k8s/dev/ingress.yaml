@@ -6,8 +6,7 @@ metadata:
     kubernetes.io/ingress.class: nginx-trial
 spec:
   rules:
-    - host: stage.a3888s.pp.ua
-      http:
+    - http:
         paths:
           - path: /
             pathType: Prefix
