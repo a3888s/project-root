@@ -1,0 +1,18 @@
+controller:
+  name: controller
+  ingressClassResource:
+    name: nginx-trial
+    enabled: true
+    default: false
+    controllerValue: "k8s.io/nginx-trial"
+
+  ingressClass: nginx-trial
+
+  service:
+    type: LoadBalancer
+
+  metrics:
+    enabled: true
+
+defaultBackend:
+  enabled: false
