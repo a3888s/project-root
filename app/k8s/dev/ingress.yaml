@@ -3,7 +3,7 @@ kind: Ingress
 metadata:
   name: python-backend-ingress
   annotations:
-    kubernetes.io/ingress.class: nginx-trial
+    kubernetes.io/ingress.class: nginx-dev
 spec:
   rules:
     - http:
