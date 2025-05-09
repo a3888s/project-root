@@ -9,7 +9,7 @@ controller:
   ingressClass: nginx-trial
 
   service:
-    type: LoadBalancer
+    type: NodePort
 
   metrics:
     enabled: true
