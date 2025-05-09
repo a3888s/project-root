@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/a3888s/project-root.git'  # 🔁 Заміни, якщо потрібно
+    repoURL: 'https://github.com/a3888s/project-root.git'
     targetRevision: dev
     path: app/k8s/dev
   destination:

@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: python-backend-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx-trial
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: python-backend-service
+                port:
+                  number: 80
