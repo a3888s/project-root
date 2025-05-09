@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
         - name: python-backend
-          image: a3888s/project-root:v1.0.3
+          image: a3888s/project-root:v1.0.4
           ports:
             - containerPort: 8080
