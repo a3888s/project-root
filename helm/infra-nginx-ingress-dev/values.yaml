@@ -1,16 +1,16 @@
 controller:
-  ingressClass: nginx-trial
+  ingressClass: nginx-dev
   ingressClassResource:
-    name: nginx-trial
+    name: nginx-dev
     enabled: true
     default: false
-    controllerValue: "k8s.io/nginx-trial"
+    controllerValue: "k8s.io/nginx-dev"
 
   service:
     type: NodePort
     nodePorts:
-      http: 32080
-      https: 32443
+      http: 31080
+      https: 31443
 
   metrics:
     enabled: true
